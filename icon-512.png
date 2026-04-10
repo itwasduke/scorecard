@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1a3a2a"/>
+  <!-- Flag pole -->
+  <rect x="232" y="80" width="16" height="352" rx="8" fill="#faf7f0"/>
+  <!-- Flag -->
+  <polygon points="248,92 400,152 248,212" fill="#c9a84c"/>
+  <!-- Ground / tee -->
+  <ellipse cx="240" cy="440" rx="72" ry="22" fill="#2d5a3d"/>
+  <!-- Golf ball -->
+  <circle cx="240" cy="420" r="38" fill="#faf7f0"/>
+  <circle cx="228" cy="410" r="5" fill="#ddd"/>
+  <circle cx="244" cy="402" r="5" fill="#ddd"/>
+  <circle cx="258" cy="412" r="5" fill="#ddd"/>
+  <circle cx="226" cy="426" r="5" fill="#ddd"/>
+  <circle cx="252" cy="430" r="5" fill="#ddd"/>
+  <circle cx="240" cy="416" r="5" fill="#ddd"/>
+</svg>

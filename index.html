@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Golf League Scorer</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+
+  <!-- Theme & iOS PWA -->
+  <meta name="theme-color" content="#1a3a2a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Golf Scorer">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+
+  <!-- ─── CONFIGURATION ──────────────────────────────────────────────────── -->
+  <script>
+    const FIREBASE_CONFIG = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT.firebaseapp.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId:             "YOUR_APP_ID"
+    };
+    const GEMINI_API_KEY = "AIzaSyCHILq5urrNAjIFmNy2-tZXJEY-3k20mDI";
+  </script>
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+
+  <style>
+    /* ── Design Tokens ───────────────────────────────────────────────────── */
+    :root {
+      --green-dark:  #1a3a2a;
+      --green-mid:   #2d5a3d;
+      --green-light: #4a7c5f;
+      --cream:       #faf7f0;
+      --cream-dark:  #e8e4d9;
+      --gold:        #c9a84c;
+      --gold-light:  #e0c068;
+      --text-dark:   #1a1a1a;
+      --text-mid:    #4a4a4a;
+      --text-light:  #888;
+      --white:       #ffffff;
+      --red:         #c0392b;
+      --red-bg:      #fde8e8;
+      --green-bg:    #e8f5e9;
+      --shadow:      0 2px 12px rgba(0,0,0,.10);
+      --shadow-lg:   0 8px 32px rgba(0,0,0,.15);
+      --r:           12px;
+      --r-sm:        8px;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text-dark);
+      overflow-x: hidden;
+    }
+
+    /* ── App Shell ───────────────────────────────────────────────────────── */
+    #app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ── Offline Banner ──────────────────────────────────────────────────── */
+    #offlineBanner {
+      display: none;
+      background: #e65100;
+      color: #fff;
+      text-align: center;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    #offlineBanner.show { display: block; }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    .app-header {
+      background: var(--green-dark);
+      color: var(--cream);
+      padding: 14px 20px 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .app-header h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: .4px;
+      line-height: 1.2;
+    }
+    .app-header .subtitle {
+      font-size: 11px;
+      color: var(--cream-dark);
+      opacity: .75;
+      margin-top: 2px;
+      letter-spacing: .3px;
+    }
+
+    /* ── Main ────────────────────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      padding: 14px 14px 88px;
+      overflow-y: auto;
+    }
+
+    /* ── Bottom Nav ──────────────────────────────────────────────────────── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      background: var(--green-dark);
+      display: flex;
+      border-top: 1px solid var(--green-mid);
+      z-index: 100;
+    }
+    .nav-btn {
+      flex: 1;
+      padding: 10px 8px 12px;
+      background: none;
+      border: none;
+      color: rgba(250,247,240,.5);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+    .nav-btn.active { color: var(--gold); }
+    .nav-btn svg { width: 20px; height: 20px; }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--green-dark);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 16px;
+      background: var(--gold);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── Play Mode Grid ──────────────────────────────────────────────────── */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .mode-btn {
+      padding: 10px 6px 8px;
+      border: 2px solid var(--cream-dark);
+      border-radius: var(--r-sm);
+      background: var(--white);
+      cursor: pointer;
+      text-align: center;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-mid);
+      line-height: 1.4;
+      letter-spacing: .2px;
+      transition: all .18s;
+    }
+    .mode-btn.active {
+      border-color: var(--green-dark);
+      background: var(--green-dark);
+      color: var(--cream);
+    }
+    .mode-btn .mi {
+      font-size: 20px;
+      display: block;
+      margin-bottom: 4px;
+      line-height: 1;
+    }
+
+    /* ── Rules Note ──────────────────────────────────────────────────────── */
+    .rules-note {
+      background: var(--cream);
+      border-left: 3px solid var(--gold);
+      border-radius: 0 var(--r-sm) var(--r-sm) 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-mid);
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    /* ── Entry Mode Tabs ─────────────────────────────────────────────────── */
+    .entry-tabs {
+      display: flex;
+      background: var(--cream);
+      border-radius: var(--r-sm);
+      padding: 3px;
+      margin-bottom: 14px;
+    }
+    .entry-tab {
+      flex: 1;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-mid);
+      transition: all .18s;
+    }
+    .entry-tab.active {
+      background: var(--white);
+      color: var(--green-dark);
+      box-shadow: 0 1px 4px rgba(0,0,0,.10);
+    }
+
+    /* ── Team Grid ───────────────────────────────────────────────────────── */
+    .teams-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .team-card {
+      background: var(--cream);
+      border-radius: var(--r-sm);
+      padding: 10px;
+    }
+    .team-card.team-a { border-top: 3px solid var(--green-dark); }
+    .team-card.team-b { border-top: 3px solid var(--gold); }
+    .team-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+
+    /* ── Form ────────────────────────────────────────────────────────────── */
+    .form-input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: var(--r-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-dark);
+      background: var(--white);
+      outline: none;
+      transition: border-color .18s;
+      margin-bottom: 6px;
+    }
+    .form-input:focus { border-color: var(--green-mid); }
+    .form-input::placeholder { color: var(--text-light); }
+    .form-input:last-child { margin-bottom: 0; }
+
+    /* ── Scorecard Table ─────────────────────────────────────────────────── */
+    .tbl-wrap {
+      overflow-x: auto;
+      margin: 0 -16px;
+      padding: 0 16px 4px;
+    }
+    .scorecard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .scorecard-table th {
+      background: var(--green-dark);
+      color: var(--cream);
+      padding: 8px 3px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      white-space: nowrap;
+    }
+    .scorecard-table th:first-child { padding-left: 8px; border-radius: 6px 0 0 0; }
+    .scorecard-table th:last-child  { padding-right: 8px; border-radius: 0 6px 0 0; }
+    .scorecard-table td {
+      padding: 4px 2px;
+      text-align: center;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+    .scorecard-table td:first-child { padding-left: 6px; font-weight: 700; font-size: 12px; }
+    .scorecard-table tr:last-child td { border-bottom: none; }
+
+    /* Number inputs */
+    .score-input, .par-input {
+      border-radius: 6px;
+      border: 1.5px solid var(--cream-dark);
+      text-align: center;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      color: var(--text-dark);
+      background: var(--white);
+      outline: none;
+      transition: border-color .18s;
+      -moz-appearance: textfield;
+    }
+    .score-input::-webkit-outer-spin-button,
+    .score-input::-webkit-inner-spin-button,
+    .par-input::-webkit-outer-spin-button,
+    .par-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .score-input { width: 40px; height: 34px; font-size: 15px; }
+    .par-input   { width: 32px; height: 28px; font-size: 12px; color: var(--text-mid); }
+    .score-input:focus, .par-input:focus { border-color: var(--green-mid); }
+
+    /* Hole result badge */
+    .hole-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .hole-dot.win-a  { background: var(--green-dark); color: var(--cream); }
+    .hole-dot.win-b  { background: var(--gold); color: var(--green-dark); }
+    .hole-dot.tie    { background: var(--cream-dark); color: var(--text-mid); }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 13px 18px;
+      border: none;
+      border-radius: var(--r-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter .18s, transform .12s;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary   { background: var(--green-dark); color: var(--cream); }
+    .btn-primary:hover { filter: brightness(1.15); }
+    .btn-secondary { background: var(--cream); color: var(--green-dark); border: 2px solid var(--green-dark); }
+    .btn-gold      { background: var(--gold); color: var(--green-dark); }
+    .btn-gold:hover { filter: brightness(1.08); }
+    .btn-danger    { background: #c0392b; color: #fff; }
+    .btn-sm { padding: 8px 14px; font-size: 12px; width: auto; }
+
+    /* ── Camera / Scan Section ───────────────────────────────────────────── */
+    .scan-hero {
+      text-align: center;
+      padding: 24px 12px 16px;
+    }
+    .scan-hero p {
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+    #cameraInput { display: none; }
+
+    .scan-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      background: var(--green-dark);
+      color: var(--cream);
+      border: none;
+      border-radius: var(--r);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: filter .18s, transform .12s;
+    }
+    .scan-cta:active { transform: scale(.97); }
+    .scan-cta:hover  { filter: brightness(1.15); }
+
+    /* Image preview */
+    .img-preview-wrap { display: none; margin-top: 14px; }
+    .img-preview-wrap.show { display: block; }
+    .img-preview-wrap img {
+      width: 100%;
+      border-radius: var(--r-sm);
+      border: 2px solid var(--cream-dark);
+      display: block;
+    }
+    .preview-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .preview-actions .btn { flex: 1; }
+
+    /* Loading spinner */
+    .loading-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 32px 16px;
+    }
+    .loading-wrap.show { display: flex; }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--cream-dark);
+      border-top-color: var(--green-dark);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 13px; color: var(--text-mid); font-weight: 500; }
+
+    /* Skeleton placeholder */
+    .skeleton {
+      background: linear-gradient(90deg, var(--cream-dark) 25%, var(--cream) 50%, var(--cream-dark) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Results Panel ───────────────────────────────────────────────────── */
+    #resultsPanel { display: none; }
+    #resultsPanel.show { display: block; animation: slideUp .38s ease-out; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .winner-banner {
+      background: var(--green-dark);
+      color: var(--cream);
+      border-radius: var(--r);
+      padding: 22px 18px 18px;
+      text-align: center;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-lg);
+    }
+    .winner-banner.is-tie { background: var(--cream-dark); }
+    .winner-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      opacity: .7;
+      margin-bottom: 4px;
+    }
+    .winner-name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .is-tie .winner-name { color: var(--text-dark); }
+
+    .pts-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .pts-col { text-align: center; }
+    .pts-num {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .pts-lbl { font-size: 11px; opacity: .65; margin-top: 3px; }
+    .pts-div { font-size: 26px; opacity: .4; }
+
+    .strokes-row {
+      display: flex;
+      justify-content: space-between;
+      background: rgba(255,255,255,.10);
+      border-radius: var(--r-sm);
+      padding: 8px 12px;
+      margin-top: 12px;
+      font-size: 12px;
+      gap: 8px;
+    }
+    .is-tie .strokes-row { background: rgba(0,0,0,.07); }
+
+    .handicap-note {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-light);
+      font-style: italic;
+      margin-bottom: 8px;
+    }
+
+    /* Results breakdown table */
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .results-table th {
+      background: var(--green-dark);
+      color: var(--cream);
+      padding: 8px 5px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+    .results-table th:first-child { padding-left: 8px; border-radius: 6px 0 0 0; }
+    .results-table th:last-child  { padding-right: 8px; border-radius: 0 6px 0 0; }
+    .results-table td {
+      padding: 7px 5px;
+      text-align: center;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+    .results-table tfoot td {
+      border-bottom: none;
+      font-weight: 700;
+      background: var(--cream);
+      font-size: 13px;
+    }
+    .cell-a { color: var(--green-dark); font-weight: 700; }
+    .cell-b { color: #9a6c00;           font-weight: 700; }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .action-row .btn { flex: 1; }
+
+    /* ── Alerts ──────────────────────────────────────────────────────────── */
+    .alert {
+      padding: 11px 14px;
+      border-radius: var(--r-sm);
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+    .alert-error   { background: var(--red-bg);  color: var(--red);     border: 1px solid #f5c6c6; }
+    .alert-success { background: var(--green-bg); color: #2d6a2d;        border: 1px solid #c8e6c9; }
+    .alert-info    { background: #e3f2fd;          color: #1565c0;        border: 1px solid #bbdefb; }
+
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 28px);
+      max-width: 452px;
+      z-index: 300;
+      border-radius: var(--r-sm);
+      box-shadow: var(--shadow-lg);
+      animation: fadeIn .25s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── History ─────────────────────────────────────────────────────────── */
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .match-item {
+      background: var(--white);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .match-header {
+      padding: 13px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .match-header:active { background: var(--cream); }
+    .match-teams { font-weight: 600; font-size: 13px; }
+    .match-meta  { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+    .match-pts {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 19px;
+      font-weight: 700;
+      white-space: nowrap;
+      margin-left: 10px;
+    }
+    .match-pts.a-wins { color: var(--green-dark); }
+    .match-pts.b-wins { color: #9a6c00; }
+    .match-pts.is-tie { color: var(--text-mid); }
+
+    .match-detail {
+      display: none;
+      border-top: 1px solid var(--cream-dark);
+      padding: 12px 14px;
+      background: var(--cream);
+    }
+    .match-detail.open { display: block; }
+
+    .ai-badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--green-dark);
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+
+    /* ── Empty State ─────────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+    }
+    .empty-state svg {
+      width: 56px;
+      height: 56px;
+      opacity: .25;
+      margin-bottom: 14px;
+    }
+    .empty-state h3 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 17px;
+      color: var(--text-mid);
+      margin-bottom: 6px;
+    }
+    .empty-state p { font-size: 13px; color: var(--text-light); }
+
+    /* ── Dialog ──────────────────────────────────────────────────────────── */
+    .dialog-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .dialog-overlay.show { display: flex; }
+    .dialog-box {
+      background: var(--white);
+      border-radius: var(--r) var(--r) 0 0;
+      padding: 24px 20px 28px;
+      width: 100%;
+      max-width: 480px;
+      animation: slideUp .25s ease-out;
+    }
+    .dialog-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .dialog-body { font-size: 13px; color: var(--text-mid); margin-bottom: 22px; line-height: 1.5; }
+    .dialog-actions { display: flex; gap: 10px; }
+    .dialog-actions .btn { flex: 1; }
+
+    /* ── Utilities ───────────────────────────────────────────────────────── */
+    .hidden   { display: none !important; }
+    .mt-10    { margin-top: 10px; }
+    .mt-14    { margin-top: 14px; }
+    .gap-10   { gap: 10px; }
+
+    /* ── Responsive desktop centering ────────────────────────────────────── */
+    @media (min-width: 500px) {
+      .bottom-nav, .toast { left: 50%; transform: translateX(-50%); }
+      .dialog-box { border-radius: var(--r); margin: auto; margin-bottom: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Offline Banner -->
+<div id="offlineBanner">&#x26a0;&#xfe0f; You are offline — scores saved locally</div>
+
+<div id="app">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="app-header">
+    <h1>&#x26F3; Golf League Scorer</h1>
+    <div class="subtitle">Best-Shot Scramble &bull; 9-Point Match Play</div>
+  </header>
+
+  <!-- ── Main Content ────────────────────────────────────────────────────── -->
+  <main class="main-content" id="mainContent">
+
+    <!-- ════════════ SCORECARD TAB ════════════════════════════════════════ -->
+    <div id="tabScorecard">
+
+      <!-- Play Mode -->
+      <div class="card">
+        <div class="card-title">Play Mode</div>
+        <div class="mode-grid">
+          <button class="mode-btn active" data-mode="full" onclick="setMode('full')">
+            <span class="mi">&#x1F465;</span>Full Match<br><small>2 vs 2</small>
+          </button>
+          <button class="mode-btn" data-mode="soloVsFull" onclick="setMode('soloVsFull')">
+            <span class="mi">&#x1F3CC;&#xFE0F;</span>Solo vs Full<br><small>1 vs 2</small>
+          </button>
+          <button class="mode-btn" data-mode="soloVsSolo" onclick="setMode('soloVsSolo')">
+            <span class="mi">&#x1F91D;</span>Solo vs Solo<br><small>1 vs 1</small>
+          </button>
+        </div>
+        <div class="rules-note" id="rulesNote">
+          Both teams have 2 players. Best-shot scramble — team plays from the best ball each shot.
+        </div>
+      </div>
+
+      <!-- Teams -->
+      <div class="card">
+        <div class="card-title">Teams &amp; Players</div>
+        <div class="teams-grid">
+          <!-- Team A -->
+          <div class="team-card team-a">
+            <div class="team-label">Team A</div>
+            <input class="form-input" id="teamAName" placeholder="Team name" value="Team A" oninput="syncHeaders()">
+            <input class="form-input" id="teamAP1" placeholder="Player 1">
+            <input class="form-input" id="teamAP2" placeholder="Player 2">
+            <input class="form-input" id="teamAHcp" type="number" min="0" max="36" step="1" placeholder="Handicap (opt.)">
+          </div>
+          <!-- Team B -->
+          <div class="team-card team-b">
+            <div class="team-label">Team B</div>
+            <input class="form-input" id="teamBName" placeholder="Team name" value="Team B" oninput="syncHeaders()">
+            <input class="form-input" id="teamBP1" placeholder="Player 1">
+            <input class="form-input" id="teamBP2" placeholder="Player 2">
+            <input class="form-input" id="teamBHcp" type="number" min="0" max="36" step="1" placeholder="Handicap (opt.)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Scores -->
+      <div class="card">
+        <div class="card-title">Scores</div>
+
+        <!-- Entry Mode Tabs -->
+        <div class="entry-tabs">
+          <button class="entry-tab active" id="tabManualBtn" onclick="setEntryMode('manual')">&#x270F;&#xFE0F; Manual</button>
+          <button class="entry-tab"        id="tabCameraBtn" onclick="setEntryMode('camera')">&#x1F4F7; AI Scan</button>
+        </div>
+
+        <!-- ── Camera Section ────────────────────────────────────────────── -->
+        <div id="cameraSection" class="hidden">
+          <div class="scan-hero">
+            <p>Photograph your scorecard and let Gemini AI extract the scores automatically. All fields stay editable after scanning.</p>
+            <button class="scan-cta" onclick="openCamera()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" aria-hidden="true">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              Scan Scorecard
+            </button>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="onImagePicked(event)">
+          </div>
+
+          <!-- Preview -->
+          <div class="img-preview-wrap" id="imgPreview">
+            <img id="previewImg" src="" alt="Captured scorecard">
+            <div class="preview-actions mt-10">
+              <button class="btn btn-secondary" onclick="retake()">&#x21A9; Retake</button>
+              <button class="btn btn-primary"   onclick="submitToGemini()">Looks Good &#x2192;</button>
+            </div>
+          </div>
+
+          <!-- Scan loading -->
+          <div class="loading-wrap" id="scanLoading">
+            <div class="spinner"></div>
+            <div class="loading-text">Reading scorecard&hellip;</div>
+          </div>
+
+          <!-- Scan error -->
+          <div id="scanError"></div>
+        </div>
+
+        <!-- ── Manual Section ────────────────────────────────────────────── -->
+        <div id="manualSection">
+          <div class="tbl-wrap">
+            <table class="scorecard-table" id="scorecardTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Par</th>
+                  <th id="thA">Team A</th>
+                  <th id="thB">Team B</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="scorecardBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mt-14">
+          <button class="btn btn-primary" onclick="calculate()">&#x1F4CA; Calculate Results</button>
+        </div>
+      </div>
+
+      <!-- ── Results Panel ─────────────────────────────────────────────── -->
+      <div id="resultsPanel"></div>
+
+    </div><!-- /tabScorecard -->
+
+    <!-- ════════════ HISTORY TAB ══════════════════════════════════════════ -->
+    <div id="tabHistory" class="hidden">
+      <div class="card">
+        <div class="card-title">Match History</div>
+        <div class="loading-wrap show" id="historyLoading">
+          <div class="spinner"></div>
+          <div class="loading-text">Loading history&hellip;</div>
+        </div>
+        <div id="historyList" class="history-list hidden"></div>
+        <div id="historyEmpty" class="empty-state hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          <h3>No matches yet</h3>
+          <p id="historyEmptyMsg">Your saved matches will appear here</p>
+        </div>
+      </div>
+      <div id="clearHistoryWrap" class="hidden">
+        <button class="btn btn-danger" onclick="confirmClear()">&#x1F5D1;&#xFE0F; Clear History</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Bottom Nav ──────────────────────────────────────────────────────── -->
+  <nav class="bottom-nav" role="navigation" aria-label="App sections">
+    <button class="nav-btn active" id="navScorecard" onclick="switchTab('scorecard')" aria-label="Scorecard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M3 9h18M9 21V9"/>
+      </svg>
+      Scorecard
+    </button>
+    <button class="nav-btn" id="navHistory" onclick="switchTab('history')" aria-label="History">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      History
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ── Confirm Dialog ────────────────────────────────────────────────────── -->
+<div class="dialog-overlay" id="confirmDialog" role="dialog" aria-modal="true">
+  <div class="dialog-box">
+    <div class="dialog-title">Clear All History?</div>
+    <div class="dialog-body">This will permanently delete all your saved matches. This action cannot be undone.</div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" onclick="closeDialog()">Cancel</button>
+      <button class="btn btn-danger"    onclick="clearHistory()">Delete All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Firebase SDK (compat v9) ──────────────────────────────────────────── -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<!-- ── App Logic ─────────────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const S = {
+  mode:         'full',       // 'full' | 'soloVsFull' | 'soloVsSolo'
+  entryMode:    'manual',     // 'manual' | 'camera'
+  tab:          'scorecard',  // 'scorecard' | 'history'
+  pars:         [4,4,4,4,4,4,4,4,4],
+  photo:        null,         // { base64, mimeType, dataUrl }
+  results:      null,
+  scannedByAI:  false,
+  uid:          null,
+  db:           null,
+  auth:         null,
+  historyLoaded: false,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FIREBASE INIT
+// ═══════════════════════════════════════════════════════════════════════════
+function fbConfigured() {
+  return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
+}
+
+function initFirebase() {
+  if (!fbConfigured()) { console.warn('Firebase not configured.'); return; }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    S.db   = firebase.firestore();
+    S.auth = firebase.auth();
+    S.auth.signInAnonymously()
+      .then(c => { S.uid = c.user.uid; })
+      .catch(e => console.warn('Auth error:', e));
+  } catch (e) {
+    console.warn('Firebase init error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(e => console.warn('SW registration failed:', e));
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ONLINE / OFFLINE
+// ═══════════════════════════════════════════════════════════════════════════
+function updateOnline() {
+  document.getElementById('offlineBanner').classList.toggle('show', !navigator.onLine);
+}
+window.addEventListener('online',  updateOnline);
+window.addEventListener('offline', updateOnline);
+updateOnline();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLAY MODE
+// ═══════════════════════════════════════════════════════════════════════════
+const RULES = {
+  full:        'Both teams have 2 players. Best-shot scramble — team plays from the best ball each shot.',
+  soloVsFull:  'Team A is a solo player hitting 2 balls per shot (1 putt only on the green) vs Team B\'s 2-player team.',
+  soloVsSolo:  'Both teams have 1 player. Each plays 1 ball only — standard stroke per hole.',
+};
+
+function setMode(mode) {
+  S.mode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('rulesNote').textContent = RULES[mode];
+
+  // Adjust player 2 visibility
+  const showAP2 = (mode === 'full');
+  const showBP2 = (mode === 'full' || mode === 'soloVsFull');
+  document.getElementById('teamAP2').classList.toggle('hidden', !showAP2);
+  document.getElementById('teamBP2').classList.toggle('hidden', !showBP2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENTRY MODE (Manual / Camera)
+// ═══════════════════════════════════════════════════════════════════════════
+function setEntryMode(mode) {
+  S.entryMode = mode;
+  document.getElementById('tabManualBtn').classList.toggle('active', mode === 'manual');
+  document.getElementById('tabCameraBtn').classList.toggle('active', mode === 'camera');
+  document.getElementById('manualSection').classList.toggle('hidden', mode !== 'manual');
+  document.getElementById('cameraSection').classList.toggle('hidden', mode !== 'camera');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCORECARD TABLE
+// ═══════════════════════════════════════════════════════════════════════════
+function buildTable() {
+  const tbody = document.getElementById('scorecardBody');
+  tbody.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td><input class="par-input" type="number" min="3" max="6" value="${S.pars[i]}"
+            data-i="${i}" onchange="onParChange(${i},this.value)"></td>
+      <td><input class="score-input" type="number" min="1" max="15"
+            id="sA${i}" oninput="onScore(${i})"
+            onkeydown="advanceFocus(event,${i},'a')"></td>
+      <td><input class="score-input" type="number" min="1" max="15"
+            id="sB${i}" oninput="onScore(${i})"
+            onkeydown="advanceFocus(event,${i},'b')"></td>
+      <td><span class="hole-dot" id="dot${i}"></span></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function onParChange(i, v) {
+  S.pars[i] = parseInt(v) || 4;
+}
+
+function onScore(i) {
+  refreshDot(i);
+}
+
+function refreshDot(i) {
+  const a = numVal(`sA${i}`);
+  const b = numVal(`sB${i}`);
+  const dot = document.getElementById(`dot${i}`);
+  if (a === null || b === null) {
+    dot.textContent = '';
+    dot.className = 'hole-dot';
+    return;
+  }
+  if (a < b)       { dot.textContent = 'A'; dot.className = 'hole-dot win-a'; }
+  else if (b < a)  { dot.textContent = 'B'; dot.className = 'hole-dot win-b'; }
+  else             { dot.textContent = '½'; dot.className = 'hole-dot tie';   }
+}
+
+function advanceFocus(e, i, team) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const next = team === 'a'
+    ? document.getElementById(`sB${i}`)
+    : (i < 8 ? document.getElementById(`sA${i + 1}`) : null);
+  if (next) next.focus();
+}
+
+function syncHeaders() {
+  const a = v('teamAName') || 'Team A';
+  const b = v('teamBName') || 'Team B';
+  document.getElementById('thA').textContent = a;
+  document.getElementById('thB').textContent = b;
+}
+
+function fillScores(scoresA, scoresB, pars) {
+  for (let i = 0; i < 9; i++) {
+    const inA = document.getElementById(`sA${i}`);
+    const inB = document.getElementById(`sB${i}`);
+    const inP = document.querySelector(`[data-i="${i}"].par-input`);
+    if (inA && scoresA[i] != null) inA.value = scoresA[i];
+    if (inB && scoresB[i] != null) inB.value = scoresB[i];
+    if (inP && pars && pars[i] != null) { inP.value = pars[i]; S.pars[i] = pars[i]; }
+    refreshDot(i);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CAMERA / AI SCAN
+// ═══════════════════════════════════════════════════════════════════════════
+function openCamera() {
+  document.getElementById('cameraInput').value = '';
+  document.getElementById('cameraInput').click();
+}
+
+function onImagePicked(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    S.photo = { base64: dataUrl.split(',')[1], mimeType: file.type, dataUrl };
+
+    document.getElementById('previewImg').src = dataUrl;
+    document.getElementById('imgPreview').classList.add('show');
+    document.getElementById('scanLoading').classList.remove('show');
+    document.getElementById('scanError').innerHTML = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function retake() {
+  S.photo = null;
+  document.getElementById('cameraInput').value = '';
+  document.getElementById('previewImg').src = '';
+  document.getElementById('imgPreview').classList.remove('show');
+  document.getElementById('scanError').innerHTML = '';
+  openCamera();
+}
+
+async function submitToGemini() {
+  if (!S.photo) return;
+
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+    showScanErr('Gemini API key not configured. Add your key to the CONFIGURATION block at the top of index.html.');
+    return;
+  }
+  if (!navigator.onLine) {
+    showScanErr('No internet connection — please enter scores manually.');
+    return;
+  }
+
+  document.getElementById('imgPreview').classList.remove('show');
+  document.getElementById('scanLoading').classList.add('show');
+  document.getElementById('scanError').innerHTML = '';
+
+  try {
+    const result = await callGemini(S.photo.base64, S.photo.mimeType);
+
+    document.getElementById('scanLoading').classList.remove('show');
+    setEntryMode('manual');
+
+    if (result.teamA?.name) el('teamAName').value = result.teamA.name;
+    if (result.teamB?.name) el('teamBName').value = result.teamB.name;
+    if (result.teamA?.scores && result.teamB?.scores) {
+      fillScores(result.teamA.scores, result.teamB.scores, result.pars);
+    }
+    syncHeaders();
+    S.scannedByAI = true;
+    toast('Scores extracted! Review and correct any errors, then tap Calculate Results.', 'success');
+
+  } catch (err) {
+    document.getElementById('scanLoading').classList.remove('show');
+    document.getElementById('imgPreview').classList.add('show');
+    showScanErr(`AI scan failed: ${err.message}. Please enter scores manually.`);
+  }
+}
+
+async function callGemini(base64, mimeType) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  const prompt = `This is a golf scorecard. Extract the scores for each team or player for holes 1 through 9. Return ONLY a valid JSON object in this exact format:
+{
+  "teamA": { "name": "<team or player name if visible>", "scores": [h1,h2,h3,h4,h5,h6,h7,h8,h9] },
+  "teamB": { "name": "<team or player name if visible>", "scores": [h1,h2,h3,h4,h5,h6,h7,h8,h9] },
+  "pars": [h1,h2,h3,h4,h5,h6,h7,h8,h9]
+}
+Use null for any score that is unreadable or missing.`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [
+        { text: prompt },
+        { inline_data: { mime_type: mimeType, data: base64 } }
+      ]}]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Empty response from Gemini');
+
+  // Extract JSON — handle optional markdown code fences
+  const m = text.match(/```json\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*?\})\s*$/);
+  if (!m) throw new Error('Could not parse AI response as JSON');
+  return JSON.parse(m[1] || m[0]);
+}
+
+function showScanErr(msg) {
+  const d = document.getElementById('scanError');
+  d.innerHTML = `<div class="alert alert-error">${escHtml(msg)}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCORING LOGIC
+// ═══════════════════════════════════════════════════════════════════════════
+function getInputScores() {
+  const a = [], b = [];
+  for (let i = 0; i < 9; i++) {
+    a.push(numVal(`sA${i}`));
+    b.push(numVal(`sB${i}`));
+  }
+  return { a, b };
+}
+
+function compute(scoresA, scoresB, pars, hcpA, hcpB) {
+  let ptsA = 0, ptsB = 0;
+  const holes = [];
+
+  for (let i = 0; i < 9; i++) {
+    const a = scoresA[i], b = scoresB[i];
+    if (a == null || b == null) {
+      holes.push({ hole: i+1, par: pars[i], a, b, pA: 0, pB: 0, result: '-' });
+      continue;
+    }
+    let pA = 0, pB = 0, result;
+    if      (a < b) { pA = 1;   pB = 0;   result = 'A'; }
+    else if (b < a) { pA = 0;   pB = 1;   result = 'B'; }
+    else            { pA = 0.5; pB = 0.5; result = 'T'; }
+    ptsA += pA; ptsB += pB;
+    holes.push({ hole: i+1, par: pars[i], a, b, pA, pB, result });
+  }
+
+  const totA = scoresA.reduce((s, x) => s + (x || 0), 0);
+  const totB = scoresB.reduce((s, x) => s + (x || 0), 0);
+
+  let winner = 'tie';
+  if (ptsA > ptsB) winner = 'teamA';
+  else if (ptsB > ptsA) winner = 'teamB';
+
+  return {
+    ptsA, ptsB, totA, totB,
+    netA: totA - (hcpA || 0),
+    netB: totB - (hcpB || 0),
+    holes, winner,
+  };
+}
+
+function calculate() {
+  const { a, b } = getInputScores();
+  if (!a.some(x => x != null) || !b.some(x => x != null)) {
+    toast('Please enter at least some scores before calculating.', 'error');
+    return;
+  }
+
+  const nameA = v('teamAName') || 'Team A';
+  const nameB = v('teamBName') || 'Team B';
+  const hcpA  = parseInt(el('teamAHcp').value) || 0;
+  const hcpB  = parseInt(el('teamBHcp').value) || 0;
+
+  const res = compute(a, b, S.pars, hcpA, hcpB);
+  S.results = { ...res, scoresA: a, scoresB: b, nameA, nameB, hcpA, hcpB, pars: [...S.pars] };
+
+  renderResults(S.results);
+  setTimeout(() => {
+    document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════════════════════════════════════════
+function fmtPts(p) { return p % 1 === 0 ? p : p.toFixed(1); }
+
+function renderResults(r) {
+  const isTie  = r.winner === 'tie';
+  const winName = isTie ? "It's a Tie!" : (r.winner === 'teamA' ? r.nameA : r.nameB);
+  const bannerCls = isTie ? 'winner-banner is-tie' : 'winner-banner';
+
+  const hcpNote = (r.hcpA || r.hcpB)
+    ? `<p class="handicap-note">Net strokes &mdash; ${escHtml(r.nameA)}: ${r.netA} &bull; ${escHtml(r.nameB)}: ${r.netB}</p>`
+    : '';
+
+  let rows = '';
+  for (const h of r.holes) {
+    const dCls  = h.result === 'A' ? 'hole-dot win-a' : (h.result === 'B' ? 'hole-dot win-b' : (h.result === 'T' ? 'hole-dot tie' : 'hole-dot'));
+    const dTxt  = h.result === 'T' ? '½' : (h.result === '-' ? '' : h.result);
+    const aCls  = h.result === 'A' ? ' class="cell-a"' : '';
+    const bCls  = h.result === 'B' ? ' class="cell-b"' : '';
+    rows += `<tr>
+      <td>${h.hole}</td>
+      <td>${h.par}</td>
+      <td${aCls}>${h.a ?? '&mdash;'}</td>
+      <td${bCls}>${h.b ?? '&mdash;'}</td>
+      <td><span class="${dCls}" style="margin:auto;">${dTxt}</span></td>
+    </tr>`;
+  }
+
+  const panel = document.getElementById('resultsPanel');
+  panel.innerHTML = `
+    <div class="${bannerCls}">
+      <div class="winner-label">${isTie ? 'Result' : 'Winner'}</div>
+      <div class="winner-name">${escHtml(winName)}</div>
+      <div class="pts-row">
+        <div class="pts-col">
+          <div class="pts-num">${fmtPts(r.ptsA)}</div>
+          <div class="pts-lbl">${escHtml(r.nameA)}</div>
+        </div>
+        <div class="pts-div">&ndash;</div>
+        <div class="pts-col">
+          <div class="pts-num">${fmtPts(r.ptsB)}</div>
+          <div class="pts-lbl">${escHtml(r.nameB)}</div>
+        </div>
+      </div>
+      <div class="strokes-row">
+        <span>${escHtml(r.nameA)}: ${r.totA} strokes</span>
+        <span>${escHtml(r.nameB)}: ${r.totB} strokes</span>
+      </div>
+    </div>
+
+    ${hcpNote}
+
+    <div class="card">
+      <div class="card-title">Hole-by-Hole Breakdown</div>
+      <div class="tbl-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Par</th>
+              <th>${escHtml(r.nameA)}</th>
+              <th>${escHtml(r.nameB)}</th>
+              <th>Pts</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">Total</td>
+              <td>${r.totA}</td>
+              <td>${r.totB}</td>
+              <td>${fmtPts(r.ptsA)}&ndash;${fmtPts(r.ptsB)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-gold" onclick="saveMatch()">&#x1F4BE; Save Match</button>
+      <button class="btn btn-secondary" onclick="newMatch()">New Match</button>
+    </div>`;
+
+  panel.classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SAVE MATCH
+// ═══════════════════════════════════════════════════════════════════════════
+async function saveMatch() {
+  if (!S.results) return;
+
+  if (!fbConfigured() || !S.db) {
+    toast('Firebase not configured — add your config keys to save matches.', 'error');
+    return;
+  }
+  if (!navigator.onLine) {
+    toast('You are offline — connect to save matches.', 'error');
+    return;
+  }
+  if (!S.uid) {
+    // Wait briefly for auth
+    await new Promise(res => setTimeout(res, 1200));
+    if (!S.uid) { toast('Authentication pending — try again in a moment.', 'error'); return; }
+  }
+
+  const r = S.results;
+  const matchData = {
+    matchDate: firebase.firestore.FieldValue.serverTimestamp(),
+    mode: S.mode,
+    teamA: {
+      name:         r.nameA,
+      players:      [v('teamAP1'), v('teamAP2')].filter(Boolean),
+      totalStrokes: r.totA,
+      points:       r.ptsA,
+      scores:       r.scoresA,
+      handicap:     r.hcpA,
+    },
+    teamB: {
+      name:         r.nameB,
+      players:      [v('teamBP1'), v('teamBP2')].filter(Boolean),
+      totalStrokes: r.totB,
+      points:       r.ptsB,
+      scores:       r.scoresB,
+      handicap:     r.hcpB,
+    },
+    pars:        r.pars,
+    winner:      r.winner,
+    scannedByAI: S.scannedByAI,
+    userId:      S.uid,
+  };
+
+  try {
+    await S.db.collection('matches').add(matchData);
+    toast('Match saved!', 'success');
+    S.historyLoaded = false; // force refresh next time History opens
+  } catch (e) {
+    console.error(e);
+    toast(`Save failed: ${e.message}`, 'error');
+  }
+}
+
+function newMatch() {
+  for (let i = 0; i < 9; i++) {
+    const a = document.getElementById(`sA${i}`);
+    const b = document.getElementById(`sB${i}`);
+    if (a) a.value = '';
+    if (b) b.value = '';
+    refreshDot(i);
+  }
+  S.results = null;
+  S.scannedByAI = false;
+  S.photo = null;
+  const p = document.getElementById('resultsPanel');
+  p.classList.remove('show');
+  p.innerHTML = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadHistory() {
+  const loadEl  = document.getElementById('historyLoading');
+  const listEl  = document.getElementById('historyList');
+  const emptyEl = document.getElementById('historyEmpty');
+  const msgEl   = document.getElementById('historyEmptyMsg');
+
+  loadEl.classList.add('show');
+  listEl.classList.add('hidden');
+  emptyEl.classList.add('hidden');
+
+  if (!fbConfigured() || !S.db) {
+    loadEl.classList.remove('show');
+    msgEl.textContent = 'Add your Firebase config to enable match history.';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  if (!navigator.onLine) {
+    loadEl.classList.remove('show');
+    msgEl.textContent = 'You are offline — history unavailable.';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  // Wait for auth if needed
+  if (!S.uid) {
+    await new Promise(res => setTimeout(res, 1500));
+  }
+  if (!S.uid) {
+    loadEl.classList.remove('show');
+    msgEl.textContent = 'Authentication pending — try again.';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const snap = await S.db.collection('matches')
+      .where('userId', '==', S.uid)
+      .orderBy('matchDate', 'desc')
+      .limit(50)
+      .get();
+
+    loadEl.classList.remove('show');
+
+    if (snap.empty) {
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    const matches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderHistory(matches);
+    document.getElementById('clearHistoryWrap').classList.remove('hidden');
+
+  } catch (e) {
+    console.error('loadHistory error:', e);
+    loadEl.classList.remove('show');
+    // Likely missing index — show useful message
+    msgEl.textContent = e.code === 'failed-precondition'
+      ? 'Firestore index required. Check console for a link to create it.'
+      : `Failed to load history: ${e.message}`;
+    emptyEl.classList.remove('hidden');
+  }
+}
+
+function renderHistory(matches) {
+  const listEl = document.getElementById('historyList');
+  listEl.innerHTML = '';
+  listEl.classList.remove('hidden');
+
+  for (const m of matches) {
+    const date    = m.matchDate?.toDate ? m.matchDate.toDate() : new Date();
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const ptsA    = fmtPts(m.teamA?.points ?? 0);
+    const ptsB    = fmtPts(m.teamB?.points ?? 0);
+    const ptsCls  = m.winner === 'teamA' ? 'a-wins' : (m.winner === 'teamB' ? 'b-wins' : 'is-tie');
+    const aiTag   = m.scannedByAI ? '<span class="ai-badge">AI</span>' : '';
+    const modeStr = { full: '2v2', soloVsFull: '1v2', soloVsSolo: '1v1' }[m.mode] || m.mode || '';
+
+    // Hole-by-hole rows
+    const sA   = m.teamA?.scores   || [];
+    const sB   = m.teamB?.scores   || [];
+    const pars = m.pars            || Array(9).fill(4);
+    let detailRows = '';
+    for (let i = 0; i < 9; i++) {
+      const a = sA[i], b = sB[i];
+      let res = '-', dCls = 'hole-dot', dTxt = '';
+      if (a != null && b != null) {
+        if      (a < b) { res = 'A'; dCls = 'hole-dot win-a'; dTxt = 'A'; }
+        else if (b < a) { res = 'B'; dCls = 'hole-dot win-b'; dTxt = 'B'; }
+        else            { res = 'T'; dCls = 'hole-dot tie';   dTxt = '½'; }
+      }
+      detailRows += `<tr style="font-size:12px;">
+        <td>${i+1}</td>
+        <td>${pars[i] || 4}</td>
+        <td${res==='A'?' class="cell-a"':''}>${a ?? '&mdash;'}</td>
+        <td${res==='B'?' class="cell-b"':''}>${b ?? '&mdash;'}</td>
+        <td><span class="${dCls}" style="width:18px;height:18px;font-size:9px;margin:auto;">${dTxt}</span></td>
+      </tr>`;
+    }
+
+    const item = document.createElement('div');
+    item.className = 'match-item';
+    item.innerHTML = `
+      <div class="match-header" onclick="toggleDetail(this)">
+        <div>
+          <div class="match-teams">${escHtml(m.teamA?.name || 'Team A')} vs ${escHtml(m.teamB?.name || 'Team B')} ${aiTag}</div>
+          <div class="match-meta">${escHtml(dateStr)} &bull; ${escHtml(modeStr)}</div>
+        </div>
+        <div class="match-pts ${ptsCls}">${ptsA}&ndash;${ptsB}</div>
+      </div>
+      <div class="match-detail">
+        <table class="results-table" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th>#</th><th>Par</th>
+              <th>${escHtml(m.teamA?.name || 'A')}</th>
+              <th>${escHtml(m.teamB?.name || 'B')}</th>
+              <th>Pts</th>
+            </tr>
+          </thead>
+          <tbody>${detailRows}</tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">Total</td>
+              <td>${m.teamA?.totalStrokes ?? 0}</td>
+              <td>${m.teamB?.totalStrokes ?? 0}</td>
+              <td>${ptsA}&ndash;${ptsB}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+    listEl.appendChild(item);
+  }
+}
+
+function toggleDetail(hdr) {
+  hdr.nextElementSibling.classList.toggle('open');
+}
+
+function confirmClear() {
+  document.getElementById('confirmDialog').classList.add('show');
+}
+function closeDialog() {
+  document.getElementById('confirmDialog').classList.remove('show');
+}
+
+async function clearHistory() {
+  closeDialog();
+  if (!S.db || !S.uid) return;
+
+  try {
+    const snap = await S.db.collection('matches').where('userId', '==', S.uid).get();
+    const batch = S.db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+
+    document.getElementById('historyList').innerHTML = '';
+    document.getElementById('historyList').classList.add('hidden');
+    document.getElementById('historyEmpty').classList.remove('hidden');
+    document.getElementById('historyEmptyMsg').textContent = 'Your saved matches will appear here';
+    document.getElementById('clearHistoryWrap').classList.add('hidden');
+    S.historyLoaded = false;
+    toast('History cleared.', 'success');
+  } catch (e) {
+    toast(`Failed to clear: ${e.message}`, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  S.tab = tab;
+  document.getElementById('tabScorecard').classList.toggle('hidden', tab !== 'scorecard');
+  document.getElementById('tabHistory').classList.toggle('hidden',   tab !== 'history');
+  document.getElementById('navScorecard').classList.toggle('active', tab === 'scorecard');
+  document.getElementById('navHistory').classList.toggle('active',   tab === 'history');
+
+  if (tab === 'history' && !S.historyLoaded) {
+    S.historyLoaded = true;
+    loadHistory();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════════════════
+let _toastTimer;
+function toast(msg, type = 'info') {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  clearTimeout(_toastTimer);
+  const d = document.createElement('div');
+  d.className = `alert alert-${type} toast`;
+  d.textContent = msg;
+  document.body.appendChild(d);
+  _toastTimer = setTimeout(() => d.remove(), 4500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function el(id)   { return document.getElementById(id); }
+function v(id)    { return (document.getElementById(id)?.value || '').trim(); }
+function numVal(id) {
+  const n = parseInt(document.getElementById(id)?.value);
+  return isNaN(n) ? null : n;
+}
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOOTSTRAP
+// ═══════════════════════════════════════════════════════════════════════════
+(function init() {
+  initFirebase();
+  buildTable();
+
+  // Initial player visibility
+  setMode('full');
+})();
+</script>
+
+</body>
+</html>

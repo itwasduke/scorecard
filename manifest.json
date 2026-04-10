@@ -1,0 +1,25 @@
+{
+  "name": "Golf League Scorer",
+  "short_name": "Golf Scorer",
+  "description": "Mobile-first scorecard app for 2-player team best-shot golf leagues",
+  "theme_color": "#1a3a2a",
+  "background_color": "#1a3a2a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "./index.html",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
