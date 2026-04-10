@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Golf League Scorer</title>
 
   <!-- PWA Manifest -->
@@ -14,6 +14,17 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Golf Scorer">
   <link rel="apple-touch-icon" href="./icon-192.png">
+
+  <!-- iOS PWA splash screens (covers common iPhone/iPad sizes) -->
+  <!-- iPhone 14 Pro Max -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icon-512.png">
+  <!-- iPhone 14 / 13 / 12 -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icon-512.png">
+  <!-- iPhone SE -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./icon-512.png">
+
+  <!-- Android Chrome PWA hint -->
+  <meta name="mobile-web-app-capable" content="yes">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -70,6 +81,8 @@
       background: var(--cream);
       color: var(--text-dark);
       overflow-x: hidden;
+      overscroll-behavior: none;        /* prevent pull-to-refresh on Android */
+      -webkit-text-size-adjust: 100%;   /* prevent iOS font scaling */
     }
 
     /* ── App Shell ───────────────────────────────────────────────────────── */
@@ -100,6 +113,7 @@
       background: var(--green-dark);
       color: var(--cream);
       padding: 14px 20px 10px;
+      padding-top: max(14px, calc(14px + env(safe-area-inset-top)));
       position: sticky;
       top: 0;
       z-index: 100;
@@ -125,7 +139,9 @@
     .main-content {
       flex: 1;
       padding: 14px 14px 88px;
+      padding-bottom: calc(88px + env(safe-area-inset-bottom));
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     /* ── Bottom Nav ──────────────────────────────────────────────────────── */
@@ -140,6 +156,7 @@
       display: flex;
       border-top: 1px solid var(--green-mid);
       z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom); /* iPhone home indicator */
     }
     .nav-btn {
       flex: 1;
@@ -292,12 +309,13 @@
       border: 1.5px solid var(--cream-dark);
       border-radius: var(--r-sm);
       font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
+      font-size: 16px;   /* 16px prevents iOS auto-zoom on focus */
       color: var(--text-dark);
       background: var(--white);
       outline: none;
       transition: border-color .18s;
       margin-bottom: 6px;
+      touch-action: manipulation;
     }
     .form-input:focus { border-color: var(--green-mid); }
     .form-input::placeholder { color: var(--text-light); }
@@ -351,8 +369,8 @@
     .score-input::-webkit-inner-spin-button,
     .par-input::-webkit-outer-spin-button,
     .par-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .score-input { width: 40px; height: 34px; font-size: 15px; }
-    .par-input   { width: 32px; height: 28px; font-size: 12px; color: var(--text-mid); }
+    .score-input { width: 44px; height: 36px; font-size: 16px; touch-action: manipulation; }
+    .par-input   { width: 34px; height: 30px; font-size: 14px; color: var(--text-mid); touch-action: manipulation; }
     .score-input:focus, .par-input:focus { border-color: var(--green-mid); }
 
     /* Hole result badge */
@@ -776,7 +794,7 @@
             <input class="form-input" id="teamAName" placeholder="Team name" value="Team A" oninput="syncHeaders()">
             <input class="form-input" id="teamAP1" placeholder="Player 1">
             <input class="form-input" id="teamAP2" placeholder="Player 2">
-            <input class="form-input" id="teamAHcp" type="number" min="0" max="36" step="1" placeholder="Handicap (opt.)">
+            <input class="form-input" id="teamAHcp" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="36" step="1" placeholder="Handicap (opt.)">
           </div>
           <!-- Team B -->
           <div class="team-card team-b">
@@ -784,7 +802,7 @@
             <input class="form-input" id="teamBName" placeholder="Team name" value="Team B" oninput="syncHeaders()">
             <input class="form-input" id="teamBP1" placeholder="Player 1">
             <input class="form-input" id="teamBP2" placeholder="Player 2">
-            <input class="form-input" id="teamBHcp" type="number" min="0" max="36" step="1" placeholder="Handicap (opt.)">
+            <input class="form-input" id="teamBHcp" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="36" step="1" placeholder="Handicap (opt.)">
           </div>
         </div>
       </div>
@@ -1026,13 +1044,14 @@ function buildTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${i + 1}</td>
-      <td><input class="par-input" type="number" min="3" max="6" value="${S.pars[i]}"
+      <td><input class="par-input" type="number" inputmode="numeric" pattern="[0-9]*"
+            min="3" max="6" value="${S.pars[i]}"
             data-i="${i}" onchange="onParChange(${i},this.value)"></td>
-      <td><input class="score-input" type="number" min="1" max="15"
-            id="sA${i}" oninput="onScore(${i})"
+      <td><input class="score-input" type="number" inputmode="numeric" pattern="[0-9]*"
+            min="1" max="15" id="sA${i}" oninput="onScore(${i})"
             onkeydown="advanceFocus(event,${i},'a')"></td>
-      <td><input class="score-input" type="number" min="1" max="15"
-            id="sB${i}" oninput="onScore(${i})"
+      <td><input class="score-input" type="number" inputmode="numeric" pattern="[0-9]*"
+            min="1" max="15" id="sB${i}" oninput="onScore(${i})"
             onkeydown="advanceFocus(event,${i},'b')"></td>
       <td><span class="hole-dot" id="dot${i}"></span></td>`;
     tbody.appendChild(tr);
