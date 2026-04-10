@@ -1176,7 +1176,8 @@ async function submitToGemini() {
   } catch (err) {
     document.getElementById('scanLoading').classList.remove('show');
     document.getElementById('imgPreview').classList.add('show');
-    showScanErr(`AI scan failed: ${err.message}. Please enter scores manually.`);
+    const msg = friendlyGeminiError(err.message);
+    showScanErr(msg);
   }
 }
 
@@ -1215,6 +1216,25 @@ Use null for any score that is unreadable or missing.`;
   const m = text.match(/```json\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*?\})\s*$/);
   if (!m) throw new Error('Could not parse AI response as JSON');
   return JSON.parse(m[1] || m[0]);
+}
+
+function friendlyGeminiError(raw) {
+  if (!raw) return 'AI scan failed. Please enter scores manually.';
+  if (raw.includes('quota') || raw.includes('RESOURCE_EXHAUSTED') || raw.includes('free_tier')) {
+    return 'Gemini API quota exceeded. Enable billing at aistudio.google.com, or enter scores manually.';
+  }
+  if (raw.includes('API_KEY_INVALID') || raw.includes('invalid') || raw.includes('API key')) {
+    return 'Gemini API key is invalid. Check the key in the CONFIGURATION block.';
+  }
+  if (raw.includes('offline') || raw.includes('Failed to fetch') || raw.includes('NetworkError')) {
+    return 'No internet connection — please enter scores manually.';
+  }
+  if (raw.includes('503') || raw.includes('overloaded')) {
+    return 'Gemini is temporarily unavailable. Please try again in a moment.';
+  }
+  // Truncate long raw messages
+  const short = raw.split('.')[0];
+  return `AI scan failed: ${short.length < 120 ? short : 'Unexpected error'}. Please enter scores manually.`;
 }
 
 function showScanErr(msg) {
